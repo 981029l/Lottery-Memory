@@ -1,5 +1,7 @@
 package com.caiji.app.ui.screens
 
+import android.app.Activity
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
@@ -48,11 +50,13 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
 import com.caiji.app.model.DrawRecord
 import com.caiji.app.model.LotteryRules
 import com.caiji.app.model.LotteryType
@@ -83,6 +87,14 @@ fun MainScreen(viewModel: LotteryViewModel) {
 
     var activeDetailDraw by remember { mutableStateOf<DrawRecord?>(null) }
     var morphExpanded by remember { mutableStateOf(false) }
+    // 将滚动状态提升到 AnimatedContent 外层，避免从往期详情返回后列表自动重置回顶部
+    val homeScrollState = rememberScrollState()
+
+    val view = LocalView.current
+    LaunchedEffect(activeDetailDraw) {
+        val window = (view.context as? Activity)?.window ?: return@LaunchedEffect
+        WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = (activeDetailDraw == null)
+    }
 
     var now by remember { mutableStateOf(LocalDateTime.now()) }
     LaunchedEffect(Unit) {
@@ -109,6 +121,20 @@ fun MainScreen(viewModel: LotteryViewModel) {
         val collapsedY = (fullHeightPx - with(density) { 104.dp.toPx() }).coerceAtLeast(halfY + 120f)
 
         val sheetOffsetY = remember(collapsedY) { Animatable(collapsedY) }
+
+        val sheetExpanded = sheetOffsetY.value < collapsedY - 40f
+        BackHandler(enabled = activeDetailDraw != null || morphExpanded || sheetExpanded) {
+            when {
+                activeDetailDraw != null -> activeDetailDraw = null
+                morphExpanded -> morphExpanded = false
+                sheetExpanded -> scope.launch {
+                    sheetOffsetY.animateTo(
+                        collapsedY,
+                        spring(dampingRatio = 0.86f, stiffness = 320f)
+                    )
+                }
+            }
+        }
 
         val sheetProgress = ((halfY - sheetOffsetY.value) / (halfY - fullY)).coerceIn(0f, 1f)
         val detailScale by animateFloatAsState(
@@ -141,7 +167,7 @@ fun MainScreen(viewModel: LotteryViewModel) {
                                 }
                                 .background(AppleColors.Background)
                                 .statusBarsPadding()
-                                .verticalScroll(rememberScrollState())
+                                .verticalScroll(homeScrollState)
                                 .padding(horizontal = 16.dp)
                         ) {
                             Spacer(Modifier.height(10.dp))

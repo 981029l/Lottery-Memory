@@ -78,10 +78,8 @@ fun SharedTransitionScope.DrawDetailScreen(
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding()
-                .verticalScroll(rememberScrollState())
-                .padding(bottom = 40.dp)
         ) {
-            // 顶部栏
+            // 吸顶固定顶栏（下滑看奖级和公告图时随时可关闭）
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -112,8 +110,15 @@ fun SharedTransitionScope.DrawDetailScreen(
                 }
             }
 
-            // 开奖大卡片内容
-            HeroDrawCardContent(draw = draw, showChevron = false)
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(bottom = 40.dp)
+            ) {
+                // 开奖大卡片内容
+                HeroDrawCardContent(draw = draw, showChevron = false)
 
             Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                 // 我的本期号码核对
@@ -325,6 +330,7 @@ fun SharedTransitionScope.DrawDetailScreen(
                     lineHeight = 18.sp,
                     modifier = Modifier.padding(horizontal = 4.dp)
                 )
+            }
             }
         }
     }

@@ -106,7 +106,7 @@ fun TicketSheet(
                 spotColor = Color.Black.copy(alpha = 0.22f)
             )
             .clip(RoundedCornerShape(topStart = 36.dp, topEnd = 36.dp))
-            .background(Color(0xF5F6F6FA))
+            .background(Color(0xFFF6F6FA))
     ) {
         // 顶部把手区：支持橡皮筋拖动与速度投射吸附
         Column(

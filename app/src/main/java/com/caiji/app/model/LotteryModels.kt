@@ -171,27 +171,30 @@ object LotteryRules {
         }
     }
 
-    private fun singlePrize(type: LotteryType, r: Int, b: Int): Pair<String, Int>? {
+    private fun singlePrize(type: LotteryType, r: Int, b: Int, draw: DrawRecord): Pair<String, Int>? {
+        fun officialFixed(levelName: String, fallback: Int): Int {
+            val raw = draw.prizeLevels.firstOrNull { it.name == levelName }?.amount.orEmpty()
+            return raw.replace(",", "").replace("元", "").trim().toDoubleOrNull()?.toInt() ?: fallback
+        }
         return when (type) {
             LotteryType.SSQ -> when {
                 r == 6 && b == 1 -> "一等奖" to 0
                 r == 6 -> "二等奖" to 0
-                r == 5 && b == 1 -> "三等奖" to 3000
-                r == 5 || (r == 4 && b == 1) -> "四等奖" to 200
-                r == 4 || (r == 3 && b == 1) -> "五等奖" to 10
-                b == 1 -> "六等奖" to 5
+                r == 5 && b == 1 -> "三等奖" to officialFixed("三等奖", 3000)
+                r == 5 || (r == 4 && b == 1) -> "四等奖" to officialFixed("四等奖", 200)
+                r == 4 || (r == 3 && b == 1) -> "五等奖" to officialFixed("五等奖", 10)
+                b == 1 -> "六等奖" to officialFixed("六等奖", 5)
                 else -> null
             }
+            // 2026年超级大乐透现行7奖级新规（并自动适配奖池>=8亿时的浮动加奖标准）
             LotteryType.DLT -> when {
                 r == 5 && b == 2 -> "一等奖" to 0
                 r == 5 && b == 1 -> "二等奖" to 0
-                r == 5 -> "三等奖" to 10000
-                r == 4 && b == 2 -> "四等奖" to 3000
-                r == 4 && b == 1 -> "五等奖" to 300
-                r == 3 && b == 2 -> "六等奖" to 200
-                r == 4 -> "七等奖" to 100
-                (r == 3 && b == 1) || (r == 2 && b == 2) -> "八等奖" to 15
-                r == 3 || (r == 2 && b == 1) || (r == 1 && b == 2) || b == 2 -> "九等奖" to 5
+                r == 5 || (r == 4 && b == 2) -> "三等奖" to officialFixed("三等奖", 5000)
+                r == 4 && b == 1 -> "四等奖" to officialFixed("四等奖", 300)
+                (r == 3 && b == 2) || r == 4 -> "五等奖" to officialFixed("五等奖", 150)
+                (r == 3 && b == 1) || (r == 2 && b == 2) -> "六等奖" to officialFixed("六等奖", 15)
+                r == 3 || (r == 2 && b == 1) || (r == 1 && b == 2) || b == 2 -> "七等奖" to officialFixed("七等奖", 5)
                 else -> null
             }
         }
@@ -217,7 +220,7 @@ object LotteryRules {
         val mult = ticket.multiplier.coerceAtLeast(1)
 
         if (ticket.playMode == PlayMode.SINGLE) {
-            val prize = singlePrize(ticket.type, hitFront.size, hitBack.size)
+            val prize = singlePrize(ticket.type, hitFront.size, hitBack.size, draw)
             if (prize != null) {
                 breakdown[prize.first] = mult
                 fixedTotal = prize.second * mult
@@ -240,7 +243,7 @@ object LotteryRules {
                     val bWays = comb(bTuoHits, bh) * comb(bTuoMiss, needBTuo - bh)
                     if (bWays == 0) continue
                     val ways = fWays * bWays
-                    val prize = singlePrize(ticket.type, fDanHits + fh, bDanHits + bh) ?: continue
+                    val prize = singlePrize(ticket.type, fDanHits + fh, bDanHits + bh, draw) ?: continue
                     breakdown[prize.first] = (breakdown[prize.first] ?: 0) + ways * mult
                     fixedTotal += prize.second * ways * mult
                 }
