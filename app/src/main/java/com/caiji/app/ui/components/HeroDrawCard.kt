@@ -1,5 +1,7 @@
 package com.caiji.app.ui.components
 
+import android.graphics.Matrix
+import android.graphics.SweepGradient
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -35,15 +37,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -93,24 +97,24 @@ fun HeroDrawCard(
                 onClick = onClick
             )
     ) {
-        // 底部动态模糊呼吸弥散背光
+        // 底部动态模糊呼吸弥散背光（Unbounded 避免矩形硬边裁切）
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .fillMaxWidth(0.84f)
-                .height(110.dp)
+                .fillMaxWidth(0.78f)
+                .height(64.dp)
                 .graphicsLayer {
-                    translationY = (10f + 10f * breath) * density
-                    scaleX = 0.90f + 0.14f * breath
-                    scaleY = 0.88f + 0.12f * breath
-                    alpha = 0.34f + 0.42f * breath
+                    translationY = (6f + 6f * breath) * density
+                    scaleX = 0.92f + 0.10f * breath
+                    scaleY = 0.90f + 0.12f * breath
+                    alpha = 0.28f + 0.34f * breath
                 }
-                .blur(28.dp)
-                .clip(RoundedCornerShape(44.dp))
+                .blur(radius = 28.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
                 .background(
-                    Brush.horizontalGradient(
+                    brush = Brush.horizontalGradient(
                         listOf(palette[0], palette[1], palette[2], palette[3])
-                    )
+                    ),
+                    shape = RoundedCornerShape(32.dp)
                 )
         )
 
@@ -153,23 +157,34 @@ fun HeroDrawCard(
                     )
                 }
 
-                // 旋转渐变扫光描边
-                rotate(degrees = angle) {
-                    drawRoundRect(
-                        brush = Brush.sweepGradient(
-                            0.0f to Color.Transparent,
-                            0.14f to palette[0],
-                            0.28f to palette[1],
-                            0.42f to Color.Transparent,
-                            0.55f to Color.Transparent,
-                            0.70f to palette[2],
-                            0.84f to palette[3],
-                            1.0f to Color.Transparent
-                        ),
-                        cornerRadius = CornerRadius(28.dp.toPx(), 28.dp.toPx()),
-                        style = Stroke(width = 2.dp.toPx())
-                    )
-                }
+                // 旋转渐变扫光描边（固定圆角矩形，仅旋转 SweepGradient Shader）
+                val sweepColors = intArrayOf(
+                    Color.Transparent.toArgb(),
+                    palette[0].toArgb(),
+                    palette[1].toArgb(),
+                    Color.Transparent.toArgb(),
+                    Color.Transparent.toArgb(),
+                    palette[2].toArgb(),
+                    palette[3].toArgb(),
+                    Color.Transparent.toArgb()
+                )
+                val sweepStops = floatArrayOf(0f, 0.14f, 0.28f, 0.42f, 0.55f, 0.70f, 0.84f, 1f)
+                val shader = SweepGradient(size.width / 2f, size.height / 2f, sweepColors, sweepStops)
+                val matrix = Matrix().apply { setRotate(angle, size.width / 2f, size.height / 2f) }
+                shader.setLocalMatrix(matrix)
+
+                val strokePx = 2.dp.toPx()
+                val halfStroke = strokePx / 2f
+                drawRoundRect(
+                    brush = ShaderBrush(shader),
+                    topLeft = Offset(halfStroke, halfStroke),
+                    size = androidx.compose.ui.geometry.Size(
+                        size.width - strokePx,
+                        size.height - strokePx
+                    ),
+                    cornerRadius = CornerRadius(27.dp.toPx(), 27.dp.toPx()),
+                    style = Stroke(width = strokePx)
+                )
             }
 
             HeroDrawCardContent(draw = draw, showChevron = true)

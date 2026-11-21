@@ -188,7 +188,7 @@ fun MorphPickerPanel(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(110.dp)
+                .height(if (expanded) 110.dp else 52.dp)
                 .background(
                     Brush.verticalGradient(
                         listOf(accent.copy(alpha = if (expanded) 0.22f else 0.14f), Color.Transparent)
