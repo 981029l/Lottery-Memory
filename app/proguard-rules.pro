@@ -1,0 +1,2 @@
+-keepattributes *Annotation*, Signature, InnerClasses, EnclosingMethod
+-keepclassmembers class com.caiji.app.model.** { *; }
