@@ -135,6 +135,7 @@ class LotteryViewModel(application: Application) : AndroidViewModel(application)
     fun addTickets(
         type: LotteryType,
         picks: List<Pair<List<Int>, List<Int>>>,
+        targetIssue: String? = null,
         playMode: com.caiji.app.model.PlayMode = com.caiji.app.model.PlayMode.SINGLE,
         frontDan: List<Int> = emptyList(),
         backDan: List<Int> = emptyList(),
@@ -144,7 +145,7 @@ class LotteryViewModel(application: Application) : AndroidViewModel(application)
     ) {
         val latest = (if (type == LotteryType.SSQ) _uiState.value.ssqDraws else _uiState.value.dltDraws)
             .firstOrNull()?.issue ?: LotteryRules.fallbackDraws(type).first().issue
-        val nextIssue = LotteryRules.nextIssueNumber(latest)
+        val issueToUse = targetIssue?.takeIf { it.isNotBlank() } ?: LotteryRules.nextIssueNumber(latest)
         val now = System.currentTimeMillis()
         val safeMult = multiplier.coerceIn(1, 99)
 
@@ -152,7 +153,7 @@ class LotteryViewModel(application: Application) : AndroidViewModel(application)
             UserTicket(
                 id = now + idx,
                 type = type,
-                issue = nextIssue,
+                issue = issueToUse,
                 frontBalls = front.sorted(),
                 backBalls = back.sorted(),
                 playMode = playMode,
@@ -172,7 +173,7 @@ class LotteryViewModel(application: Application) : AndroidViewModel(application)
         val multSuffix = if (safeMult > 1) " × ${safeMult}倍" else ""
         showToast(
             title = "已记入票夹 · ${playMode.label}",
-            body = "${type.displayName} 第 $nextIssue 期 · ${totalBets} 注$multSuffix",
+            body = "${type.displayName} 第 $issueToUse 期 · ${totalBets} 注$multSuffix",
             trailing = "¥${created.sumOf { it.cost }}"
         )
     }

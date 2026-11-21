@@ -164,8 +164,8 @@ class OfficialLotteryApi {
             }.orEmpty()
 
             val first = levels.firstOrNull { it.name == "一等奖" } ?: levels.firstOrNull()
-            val rawRegionText = obj.str("drawPdfUrl").ifBlank { obj.str("lotteryUnsortDrawresult") }
-            val noticeText = obj.str("lotteryDrawResultNotice").ifBlank { rawRegionText }
+            val pdfUrl = obj.str("drawPdfUrl").takeIf { it.startsWith("http") }.orEmpty()
+            val noticeText = obj.str("lotteryDrawResultNotice")
 
             DrawRecord(
                 type = LotteryType.DLT,
@@ -180,6 +180,7 @@ class OfficialLotteryApi {
                 prizeLevels = levels,
                 regions = LotteryRules.parseRegionsFromText(noticeText),
                 regionRaw = noticeText,
+                noticePdfUrl = pdfUrl,
                 isFallback = false
             )
         }

@@ -30,11 +30,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.AccessTime
-import androidx.compose.material.icons.rounded.Notifications
-import androidx.compose.material.icons.rounded.Place
-import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -61,6 +56,7 @@ import androidx.compose.ui.unit.sp
 import com.caiji.app.model.DrawRecord
 import com.caiji.app.model.LotteryRules
 import com.caiji.app.model.LotteryType
+import com.caiji.app.ui.components.AppIcons
 import com.caiji.app.ui.components.DynamicToast
 import com.caiji.app.ui.components.HeroDrawCard
 import com.caiji.app.ui.components.LotteryBall
@@ -178,7 +174,7 @@ fun MainScreen(viewModel: LotteryViewModel) {
                                         onClick = { viewModel.refreshAll(silent = false) }
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Rounded.Refresh,
+                                            imageVector = AppIcons.Refresh,
                                             contentDescription = "刷新",
                                             tint = AppleColors.InkPrimary,
                                             modifier = Modifier.size(20.dp)
@@ -189,7 +185,7 @@ fun MainScreen(viewModel: LotteryViewModel) {
                                     ) {
                                         Box {
                                             Icon(
-                                                imageVector = Icons.Rounded.Notifications,
+                                                imageVector = AppIcons.Bell,
                                                 contentDescription = "通知预览",
                                                 tint = AppleColors.InkPrimary,
                                                 modifier = Modifier.size(20.dp)
@@ -255,7 +251,7 @@ fun MainScreen(viewModel: LotteryViewModel) {
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Rounded.AccessTime,
+                                            imageVector = AppIcons.Clock,
                                             contentDescription = null,
                                             tint = AppleColors.accent(uiState.selectedType),
                                             modifier = Modifier.size(19.dp)
@@ -331,36 +327,59 @@ fun MainScreen(viewModel: LotteryViewModel) {
                                                 .background(AppleColors.Divider)
                                         )
                                     }
-                                    Row(
+                                    Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .springClickable(pressedScale = 0.98f) {
                                                 morphExpanded = false
                                                 activeDetailDraw = item
                                             }
-                                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
+                                            .padding(horizontal = 16.dp, vertical = 13.dp),
+                                        verticalArrangement = Arrangement.spacedBy(10.dp)
                                     ) {
-                                        Column {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Text(
+                                                    text = "第 ${item.issue} 期",
+                                                    color = AppleColors.InkPrimary,
+                                                    fontSize = 14.sp,
+                                                    fontWeight = FontWeight.SemiBold
+                                                )
+                                                Text(
+                                                    text = item.date,
+                                                    color = AppleColors.InkSecondary,
+                                                    fontSize = 12.sp
+                                                )
+                                            }
                                             Text(
-                                                text = "第 ${item.issue} 期",
-                                                color = AppleColors.InkPrimary,
-                                                fontSize = 14.sp,
-                                                fontWeight = FontWeight.Medium
-                                            )
-                                            Text(
-                                                text = "${item.date} · 一等奖 ${item.firstPrizeCount} 注",
+                                                text = "一等奖 ${item.firstPrizeCount} 注",
                                                 color = AppleColors.InkSecondary,
                                                 fontSize = 12.sp
                                             )
                                         }
-                                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(7.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
                                             item.frontBalls.forEach { n ->
-                                                LotteryBall(n, frontBallStyle(item.type), size = 22.dp, fontSize = 10.sp)
+                                                LotteryBall(n, frontBallStyle(item.type), size = 26.dp, fontSize = 11.sp)
                                             }
+                                            Box(
+                                                modifier = Modifier
+                                                    .width(1.dp)
+                                                    .height(14.dp)
+                                                    .background(AppleColors.Divider)
+                                            )
                                             item.backBalls.forEach { n ->
-                                                LotteryBall(n, backBallStyle(item.type), size = 22.dp, fontSize = 10.sp)
+                                                LotteryBall(n, backBallStyle(item.type), size = 26.dp, fontSize = 11.sp)
                                             }
                                         }
                                     }
@@ -431,10 +450,14 @@ fun MainScreen(viewModel: LotteryViewModel) {
                                     .align(Alignment.BottomCenter)
                                     .offset { IntOffset(0, -capsuleBottomOffset.roundToInt()) }
                             ) {
+                                val issueOptions = remember(uiState.currentDraws) {
+                                    val next = LotteryRules.nextIssueNumber(latestDraw.issue)
+                                    listOf(next) + uiState.currentDraws.take(4).map { it.issue }
+                                }
                                 MorphPickerPanel(
                                     expanded = morphExpanded,
                                     lotteryType = uiState.selectedType,
-                                    nextIssue = LotteryRules.nextIssueNumber(latestDraw.issue),
+                                    issueOptions = issueOptions,
                                     onExpand = {
                                         scope.launch {
                                             sheetOffsetY.animateTo(
@@ -449,6 +472,7 @@ fun MainScreen(viewModel: LotteryViewModel) {
                                         viewModel.addTickets(
                                             type = uiState.selectedType,
                                             picks = sub.picks,
+                                            targetIssue = sub.targetIssue,
                                             playMode = sub.playMode,
                                             frontDan = sub.frontDan,
                                             backDan = sub.backDan,
@@ -603,7 +627,7 @@ private fun RegionCard(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    imageVector = Icons.Rounded.Place,
+                    imageVector = AppIcons.Pin,
                     contentDescription = null,
                     tint = accent,
                     modifier = Modifier.size(18.dp)

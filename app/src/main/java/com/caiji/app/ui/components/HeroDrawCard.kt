@@ -25,8 +25,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,8 +35,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.BlurredEdgeTreatment
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -46,7 +42,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -97,28 +92,7 @@ fun HeroDrawCard(
                 onClick = onClick
             )
     ) {
-        // 底部动态模糊呼吸弥散背光（Unbounded 避免矩形硬边裁切）
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth(0.78f)
-                .height(64.dp)
-                .graphicsLayer {
-                    translationY = (6f + 6f * breath) * density
-                    scaleX = 0.92f + 0.10f * breath
-                    scaleY = 0.90f + 0.12f * breath
-                    alpha = 0.28f + 0.34f * breath
-                }
-                .blur(radius = 28.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
-                .background(
-                    brush = Brush.horizontalGradient(
-                        listOf(palette[0], palette[1], palette[2], palette[3])
-                    ),
-                    shape = RoundedCornerShape(32.dp)
-                )
-        )
-
-        // 主卡片容器 + 旋转渐变扫光描边
+        // 主卡片容器 + 旋转渐变扫光描边 + 内部柔和呼吸氛围光（零硬边裁切闪烁）
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -131,16 +105,25 @@ fun HeroDrawCard(
                     )
                 )
         ) {
-            // 顶部右侧柔光氛围
             Canvas(modifier = Modifier.matchParentSize()) {
+                // 顶部右侧与底部中央柔和呼吸氛围光
                 drawCircle(
                     brush = Brush.radialGradient(
-                        colors = listOf(accent.copy(alpha = 0.28f), Color.Transparent),
-                        center = Offset(size.width * 0.92f, size.height * 0.05f),
+                        colors = listOf(accent.copy(alpha = 0.22f + 0.10f * breath), Color.Transparent),
+                        center = Offset(size.width * 0.90f, size.height * 0.08f),
                         radius = size.width * 0.85f
                     ),
-                    center = Offset(size.width * 0.92f, size.height * 0.05f),
+                    center = Offset(size.width * 0.90f, size.height * 0.08f),
                     radius = size.width * 0.85f
+                )
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(palette[1].copy(alpha = 0.12f + 0.10f * breath), Color.Transparent),
+                        center = Offset(size.width * 0.22f, size.height * 0.95f),
+                        radius = size.width * 0.72f
+                    ),
+                    center = Offset(size.width * 0.22f, size.height * 0.95f),
+                    radius = size.width * 0.72f
                 )
 
                 // 跟随手指的镜面高光
@@ -238,7 +221,7 @@ fun HeroDrawCardContent(
                 )
                 if (showChevron) {
                     Icon(
-                        imageVector = Icons.Rounded.ChevronRight,
+                        imageVector = AppIcons.ChevronRight,
                         contentDescription = null,
                         tint = Color.White.copy(alpha = 0.48f),
                         modifier = Modifier.size(16.dp)

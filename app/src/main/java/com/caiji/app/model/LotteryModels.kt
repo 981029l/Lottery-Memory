@@ -66,6 +66,7 @@ data class DrawRecord(
     val prizeLevels: List<PrizeLevel> = emptyList(),
     val regions: List<RegionWin> = emptyList(),
     val regionRaw: String = "",
+    val noticePdfUrl: String = "",
     val isFallback: Boolean = false
 )
 

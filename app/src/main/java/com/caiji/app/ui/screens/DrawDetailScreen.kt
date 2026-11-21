@@ -23,8 +23,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,9 +38,11 @@ import androidx.compose.ui.unit.sp
 import com.caiji.app.model.DrawRecord
 import com.caiji.app.model.LotteryRules
 import com.caiji.app.model.UserTicket
+import com.caiji.app.ui.components.AppIcons
 import com.caiji.app.ui.components.BallStyle
 import com.caiji.app.ui.components.HeroDrawCardContent
 import com.caiji.app.ui.components.LotteryBall
+import com.caiji.app.ui.components.PdfNoticeImages
 import com.caiji.app.ui.components.backBallStyle
 import com.caiji.app.ui.components.frontBallStyle
 import com.caiji.app.ui.motion.springClickable
@@ -104,7 +104,7 @@ fun SharedTransitionScope.DrawDetailScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.Close,
+                        imageVector = AppIcons.Close,
                         contentDescription = "关闭",
                         tint = Color.White,
                         modifier = Modifier.size(18.dp)
@@ -232,6 +232,12 @@ fun SharedTransitionScope.DrawDetailScreen(
                             fontSize = 13.sp,
                             lineHeight = 20.sp
                         )
+                    } else if (draw.noticePdfUrl.isNotBlank()) {
+                        Text(
+                            text = "体彩出奖地区明细见下方官方开奖公告图",
+                            color = Color.White.copy(alpha = 0.56f),
+                            fontSize = 13.sp
+                        )
                     } else {
                         Text(
                             text = "本期官方接口未返回细分省份分布",
@@ -239,6 +245,12 @@ fun SharedTransitionScope.DrawDetailScreen(
                             fontSize = 13.sp
                         )
                     }
+                }
+
+                // 体彩官方开奖公告（App 内原生 PdfRenderer 渲染为高清图片）
+                if (draw.noticePdfUrl.isNotBlank()) {
+                    DetailSectionTitle("官方开奖公告")
+                    PdfNoticeImages(pdfUrl = draw.noticePdfUrl)
                 }
 
                 // 奖级明细

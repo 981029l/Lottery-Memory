@@ -29,11 +29,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Remove
-import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -62,13 +57,14 @@ import com.caiji.app.ui.theme.AppleColors
 
 enum class PickerTab(val label: String) {
     AUTO("机选"),
-    SINGLE("单式"),
+    SINGLE("录实票"),
     MULTIPLE("复式"),
     DANTUO("胆拖")
 }
 
 data class PickerSubmission(
     val picks: List<Pair<List<Int>, List<Int>>>,
+    val targetIssue: String? = null,
     val playMode: PlayMode,
     val frontDan: List<Int> = emptyList(),
     val backDan: List<Int> = emptyList(),
@@ -82,7 +78,7 @@ data class PickerSubmission(
 fun MorphPickerPanel(
     expanded: Boolean,
     lotteryType: LotteryType,
-    nextIssue: String,
+    issueOptions: List<String>,
     onExpand: () -> Unit,
     onDismiss: () -> Unit,
     onSaveTickets: (PickerSubmission) -> Unit,
@@ -96,10 +92,13 @@ fun MorphPickerPanel(
     var autoCount by remember { mutableIntStateOf(3) }
     var multiplier by remember { mutableIntStateOf(1) }
     var dltExtra by remember { mutableStateOf(false) }
+    var selectedIssueIdx by remember(lotteryType, issueOptions) { mutableIntStateOf(0) }
+    val selectedIssue = issueOptions.getOrElse(selectedIssueIdx) { issueOptions.firstOrNull().orEmpty() }
 
     var autoPicks by remember(lotteryType, autoCount) {
         mutableStateOf(List(autoCount) { LotteryRules.generateRandom(lotteryType) })
     }
+    var stagedSingles by remember(lotteryType) { mutableStateOf<List<Pair<List<Int>, List<Int>>>>(emptyList()) }
     var selFront by remember(lotteryType) { mutableStateOf(emptyList<Int>()) }
     var selBack by remember(lotteryType) { mutableStateOf(emptyList<Int>()) }
     var selFrontDan by remember(lotteryType) { mutableStateOf(emptyList<Int>()) }
@@ -107,6 +106,7 @@ fun MorphPickerPanel(
 
     LaunchedEffect(lotteryType) {
         autoPicks = List(autoCount) { LotteryRules.generateRandom(lotteryType) }
+        stagedSingles = emptyList()
         selFront = emptyList()
         selBack = emptyList()
         selFrontDan = emptyList()
@@ -114,7 +114,6 @@ fun MorphPickerPanel(
     }
 
     LaunchedEffect(activeTab) {
-        // 切换回单式时若超出单式上限则自动裁剪
         if (activeTab == PickerTab.SINGLE) {
             if (selFront.size > lotteryType.frontCount) selFront = selFront.take(lotteryType.frontCount)
             if (selBack.size > lotteryType.backCount) selBack = selBack.take(lotteryType.backCount)
@@ -127,8 +126,10 @@ fun MorphPickerPanel(
         PickerTab.MULTIPLE -> PlayMode.MULTIPLE
         PickerTab.DANTUO -> PlayMode.DANTUO
     }
+    val currentSingleReady = selFront.size == lotteryType.frontCount && selBack.size == lotteryType.backCount
     val betCount = when (activeTab) {
         PickerTab.AUTO -> autoPicks.size
+        PickerTab.SINGLE -> stagedSingles.size + if (currentSingleReady) 1 else 0
         else -> LotteryRules.calcBetCount(
             type = lotteryType,
             mode = currentPlayMode,
@@ -206,7 +207,7 @@ fun MorphPickerPanel(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.Shuffle,
+                    imageVector = AppIcons.Shuffle,
                     contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier.size(18.dp)
@@ -243,11 +244,36 @@ fun MorphPickerPanel(
                             fontSize = 19.sp,
                             fontWeight = FontWeight.SemiBold
                         )
-                        Text(
-                            text = "${lotteryType.displayName} · 第 $nextIssue 期 · 单注 ¥$unitPrice",
-                            color = Color.White.copy(alpha = 0.48f),
-                            fontSize = 12.sp
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "${lotteryType.displayName} · 单注 ¥$unitPrice",
+                                color = Color.White.copy(alpha = 0.48f),
+                                fontSize = 12.sp
+                            )
+                            if (selectedIssue.isNotBlank()) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(Color.White.copy(alpha = 0.12f))
+                                        .springClickable(pressedScale = 0.94f) {
+                                            if (issueOptions.isNotEmpty()) {
+                                                selectedIssueIdx = (selectedIssueIdx + 1) % issueOptions.size
+                                            }
+                                        }
+                                        .padding(horizontal = 7.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "第 $selectedIssue 期" + if (selectedIssueIdx == 0) "(下期)" else "(补录)",
+                                        color = Color.White.copy(alpha = 0.88f),
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
                     }
                     Box(
                         modifier = Modifier
@@ -258,7 +284,7 @@ fun MorphPickerPanel(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.Close,
+                            imageVector = AppIcons.Close,
                             contentDescription = "关闭",
                             tint = Color.White.copy(alpha = 0.85f),
                             modifier = Modifier.size(16.dp)
@@ -384,6 +410,28 @@ fun MorphPickerPanel(
                                 val maxFront = if (isMultiple) minOf(16, lotteryType.frontMax) else lotteryType.frontCount
                                 val maxBack = if (isMultiple) minOf(8, lotteryType.backMax) else lotteryType.backCount
                                 Column {
+                                    if (!isMultiple && stagedSingles.isNotEmpty()) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(bottom = 8.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "已暂存 ${stagedSingles.size} 注实体票（可继续录下一注）",
+                                                color = AppleColors.GreenSuccess,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                            Text(
+                                                text = "清空",
+                                                color = Color.White.copy(alpha = 0.5f),
+                                                fontSize = 11.sp,
+                                                modifier = Modifier.springClickable { stagedSingles = emptyList() }
+                                            )
+                                        }
+                                    }
                                     BallZoneHeader(
                                         title = if (lotteryType == LotteryType.SSQ) "红球" else "前区",
                                         hint = if (isMultiple) "选 ${lotteryType.frontCount}–$maxFront 个" else "选 ${lotteryType.frontCount} 个",
@@ -613,7 +661,7 @@ fun MorphPickerPanel(
                                 },
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Rounded.Remove, contentDescription = "减倍", tint = Color.White, modifier = Modifier.size(14.dp))
+                            Icon(AppIcons.Remove, contentDescription = "减倍", tint = Color.White, modifier = Modifier.size(14.dp))
                         }
                         Text(
                             text = "${multiplier}倍",
@@ -631,7 +679,7 @@ fun MorphPickerPanel(
                                 },
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Rounded.Add, contentDescription = "加倍", tint = Color.White, modifier = Modifier.size(14.dp))
+                            Icon(AppIcons.Add, contentDescription = "加倍", tint = Color.White, modifier = Modifier.size(14.dp))
                         }
                     }
 
@@ -681,9 +729,20 @@ fun MorphPickerPanel(
                                     PickerTab.AUTO -> {
                                         autoPicks = List(autoCount) { LotteryRules.generateRandom(lotteryType) }
                                     }
-                                    PickerTab.SINGLE, PickerTab.MULTIPLE -> {
+                                    PickerTab.SINGLE -> {
+                                        if (currentSingleReady) {
+                                            stagedSingles = stagedSingles + (selFront to selBack)
+                                            selFront = emptyList()
+                                            selBack = emptyList()
+                                        } else {
+                                            val (rf, rb) = LotteryRules.generateRandom(lotteryType)
+                                            selFront = (selFront + rf).distinct().take(lotteryType.frontCount).sorted()
+                                            selBack = (selBack + rb).distinct().take(lotteryType.backCount).sorted()
+                                        }
+                                    }
+                                    PickerTab.MULTIPLE -> {
                                         val (rf, rb) = LotteryRules.generateRandom(lotteryType)
-                                        val needF = if (activeTab == PickerTab.MULTIPLE) lotteryType.frontCount + 1 else lotteryType.frontCount
+                                        val needF = lotteryType.frontCount + 1
                                         val extraF = (1..lotteryType.frontMax).shuffled()
                                         selFront = (selFront + rf + extraF).distinct().take(needF).sorted()
                                         selBack = (selBack + rb).distinct().take(lotteryType.backCount).sorted()
@@ -700,12 +759,13 @@ fun MorphPickerPanel(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (activeTab == PickerTab.AUTO) {
-                                Icon(Icons.Rounded.Shuffle, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                Icon(AppIcons.Shuffle, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(6.dp))
                             }
                             Text(
                                 text = when (activeTab) {
                                     PickerTab.AUTO -> "换一批"
+                                    PickerTab.SINGLE -> if (currentSingleReady) "+ 再录一注" else "随机补全"
                                     PickerTab.DANTUO -> "清空"
                                     else -> "随机补全"
                                 },
@@ -729,6 +789,7 @@ fun MorphPickerPanel(
                                         onSaveTickets(
                                             PickerSubmission(
                                                 picks = autoPicks,
+                                                targetIssue = selectedIssue,
                                                 playMode = PlayMode.SINGLE,
                                                 multiplier = multiplier,
                                                 extra = dltExtra,
@@ -737,14 +798,31 @@ fun MorphPickerPanel(
                                         )
                                         autoPicks = List(autoCount) { LotteryRules.generateRandom(lotteryType) }
                                     }
-                                    PickerTab.SINGLE, PickerTab.MULTIPLE -> {
+                                    PickerTab.SINGLE -> {
+                                        val allList = stagedSingles + if (currentSingleReady) listOf(selFront to selBack) else emptyList()
+                                        onSaveTickets(
+                                            PickerSubmission(
+                                                picks = allList,
+                                                targetIssue = selectedIssue,
+                                                playMode = PlayMode.SINGLE,
+                                                multiplier = multiplier,
+                                                extra = dltExtra,
+                                                source = "实票录入"
+                                            )
+                                        )
+                                        stagedSingles = emptyList()
+                                        selFront = emptyList()
+                                        selBack = emptyList()
+                                    }
+                                    PickerTab.MULTIPLE -> {
                                         onSaveTickets(
                                             PickerSubmission(
                                                 picks = listOf(selFront to selBack),
-                                                playMode = currentPlayMode,
+                                                targetIssue = selectedIssue,
+                                                playMode = PlayMode.MULTIPLE,
                                                 multiplier = multiplier,
                                                 extra = dltExtra,
-                                                source = activeTab.label
+                                                source = "复式"
                                             )
                                         )
                                         selFront = emptyList()
@@ -754,6 +832,7 @@ fun MorphPickerPanel(
                                         onSaveTickets(
                                             PickerSubmission(
                                                 picks = listOf(selFront to selBack),
+                                                targetIssue = selectedIssue,
                                                 playMode = PlayMode.DANTUO,
                                                 frontDan = selFrontDan,
                                                 backDan = selBackDan,

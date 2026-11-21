@@ -9,4 +9,5 @@
 .externalNativeBuild
 .cxx
 *.jks
+!app/caiji-release.jks
 *.keystore

@@ -25,11 +25,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.AccessTime
-import androidx.compose.material.icons.rounded.Bolt
-import androidx.compose.material.icons.rounded.DeleteOutline
-import androidx.compose.material.icons.rounded.SystemUpdateAlt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
@@ -330,7 +325,7 @@ private fun AppUpdateCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.SystemUpdateAlt,
+                        imageVector = AppIcons.Download,
                         contentDescription = null,
                         tint = if (hasNew) AppleColors.GreenText else AppleColors.InkPrimary,
                         modifier = Modifier.size(18.dp)
@@ -442,7 +437,7 @@ private fun AppUpdateCard(
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.Bolt,
+                    imageVector = AppIcons.Bolt,
                     contentDescription = null,
                     tint = if (state.cnAccelEnabled) AppleColors.GreenText else AppleColors.InkSecondary,
                     modifier = Modifier.size(16.dp)
@@ -570,7 +565,7 @@ private fun TicketItemCard(
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Rounded.AccessTime,
+                                imageVector = AppIcons.Clock,
                                 contentDescription = null,
                                 tint = AppleColors.DltBlue,
                                 modifier = Modifier.size(13.dp)
@@ -602,7 +597,7 @@ private fun TicketItemCard(
                 }
 
                 Icon(
-                    imageVector = Icons.Rounded.DeleteOutline,
+                    imageVector = AppIcons.Trash,
                     contentDescription = "删除记录",
                     tint = Color(0xFFC7C7CC),
                     modifier = Modifier
