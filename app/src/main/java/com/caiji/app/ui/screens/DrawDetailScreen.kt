@@ -276,34 +276,66 @@ fun SharedTransitionScope.DrawDetailScreen(
                                         .background(Color.White.copy(alpha = 0.06f))
                                 )
                             }
-                            Row(
+                            val isDlt = draw.type == com.caiji.app.model.LotteryType.DLT
+                            val isExtraLevel = isDlt && lv.name.contains("追加")
+                            val rawAmt = LotteryRules.parseMoneyLong(lv.amount)
+                            val dltSubNote: String? = if (isDlt && rawAmt > 10_000L) {
+                                if (isExtraLevel) {
+                                    val baseName = lv.name.substringBefore("(")
+                                    val baseAmt = LotteryRules.parseMoneyLong(
+                                        draw.prizeLevels.firstOrNull { it.name == baseName }?.amount.orEmpty()
+                                    )
+                                    val combined = baseAmt + rawAmt
+                                    if (combined > 0L) {
+                                        "含基本合计 ${LotteryRules.formatCompactYuan(combined)} · 税后约 ${LotteryRules.formatCompactYuan(LotteryRules.afterTaxYuan(combined))}"
+                                    } else null
+                                } else {
+                                    "税后约 ${LotteryRules.formatCompactYuan(LotteryRules.afterTaxYuan(rawAmt))}"
+                                }
+                            } else null
+
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 13.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                                    .padding(horizontal = 16.dp, vertical = 13.dp)
                             ) {
-                                Text(
-                                    text = lv.name,
-                                    color = Color.White,
-                                    fontSize = 14.sp,
-                                    fontWeight = if (idx == 0) FontWeight.SemiBold else FontWeight.Normal
-                                )
-                                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
                                     Text(
-                                        text = "${lv.count} 注",
-                                        color = Color.White.copy(alpha = 0.48f),
-                                        fontSize = 13.sp,
-                                        textAlign = TextAlign.End,
-                                        modifier = Modifier.width(84.dp)
-                                    )
-                                    Text(
-                                        text = "¥${lv.amount}",
-                                        color = if (idx == 0) accent else Color.White,
+                                        text = lv.name,
+                                        color = Color.White,
                                         fontSize = 14.sp,
-                                        fontWeight = FontWeight.Medium,
+                                        fontWeight = if (idx == 0) FontWeight.SemiBold else FontWeight.Normal
+                                    )
+                                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                        Text(
+                                            text = "${lv.count} 注",
+                                            color = Color.White.copy(alpha = 0.48f),
+                                            fontSize = 13.sp,
+                                            textAlign = TextAlign.End,
+                                            modifier = Modifier.width(84.dp)
+                                        )
+                                        Text(
+                                            text = if (isExtraLevel) "+¥${lv.amount}" else "¥${lv.amount}",
+                                            color = if (idx == 0) accent else Color.White,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            textAlign = TextAlign.End,
+                                            modifier = Modifier.width(102.dp)
+                                        )
+                                    }
+                                }
+                                if (dltSubNote != null) {
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        text = dltSubNote,
+                                        color = Color.White.copy(alpha = 0.44f),
+                                        fontSize = 11.sp,
                                         textAlign = TextAlign.End,
-                                        modifier = Modifier.width(96.dp)
+                                        modifier = Modifier.fillMaxWidth()
                                     )
                                 }
                             }

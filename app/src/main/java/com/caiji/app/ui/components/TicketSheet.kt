@@ -83,7 +83,7 @@ fun TicketSheet(
     val pendingCount = results.count { it.second.isPending }
     val wonCount = results.count { it.second.isWon }
     val totalCost = tickets.sumOf { it.cost }
-    val totalPrize = results.sumOf { it.second.fixedAmount }
+    val totalPrize = results.sumOf { it.second.afterTaxAmount }
 
     fun animateToAnchor(target: Float, initialVelocity: Float = 0f) {
         scope.launch {
@@ -229,7 +229,7 @@ fun TicketSheet(
                 ) {
                     SummaryTile("待开奖", "$pendingCount 注", AppleColors.InkPrimary, Modifier.weight(1f))
                     SummaryTile("累计投入", "¥$totalCost", AppleColors.InkPrimary, Modifier.weight(1f))
-                    SummaryTile("累计固定奖", "¥$totalPrize", AppleColors.GreenText, Modifier.weight(1f))
+                    SummaryTile("累计到手", LotteryRules.formatCompactYuan(totalPrize), AppleColors.GreenText, Modifier.weight(1f))
                 }
             }
 
@@ -278,7 +278,8 @@ fun TicketSheet(
                         hitBack = check.hitBack,
                         isPending = check.isPending,
                         prizeName = check.prizeName,
-                        fixedAmount = check.fixedAmount,
+                        totalAmount = check.totalAmount,
+                        afterTaxAmount = check.afterTaxAmount,
                         onDelete = { onDeleteTicket(ticket.id) }
                     )
                 }
@@ -501,7 +502,8 @@ private fun TicketItemCard(
     hitBack: Set<Int>,
     isPending: Boolean,
     prizeName: String?,
-    fixedAmount: Int,
+    totalAmount: Long,
+    afterTaxAmount: Long,
     onDelete: () -> Unit
 ) {
     val accent = AppleColors.accent(ticket.type)
@@ -574,7 +576,11 @@ private fun TicketItemCard(
                         }
                     }
                     prizeName != null -> {
-                        val amt = if (fixedAmount > 0) " · ¥$fixedAmount" else " · 浮动奖"
+                        val amt = when {
+                            totalAmount > 10_000L -> " · 税后约 ${LotteryRules.formatCompactYuan(afterTaxAmount)}"
+                            totalAmount > 0L -> " · ¥$totalAmount"
+                            else -> " · 浮动奖"
+                        }
                         Box(
                             modifier = Modifier
                                 .clip(CircleShape)

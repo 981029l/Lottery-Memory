@@ -106,10 +106,13 @@ data class TicketCheckResult(
     val hitBack: Set<Int> = emptySet(),
     val prizeName: String? = null,
     val prizeBreakdown: Map<String, Int> = emptyMap(),
-    val fixedAmount: Int = 0
+    val fixedAmount: Int = 0,
+    val totalAmount: Long = 0L,
+    val afterTaxAmount: Long = 0L
 ) {
     val isWon: Boolean get() = !isPending && prizeName != null
     val totalWonBets: Int get() = prizeBreakdown.values.sum()
+    val hasTaxDeducted: Boolean get() = totalAmount > 10_000L
 }
 
 data class DrawCountdown(
@@ -171,30 +174,60 @@ object LotteryRules {
         }
     }
 
-    private fun singlePrize(type: LotteryType, r: Int, b: Int, draw: DrawRecord): Pair<String, Int>? {
-        fun officialFixed(levelName: String, fallback: Int): Int {
+    fun parseMoneyLong(raw: String): Long {
+        val cleaned = raw.replace(",", "").replace("元", "").replace("¥", "").trim()
+        return cleaned.toDoubleOrNull()?.toLong() ?: 0L
+    }
+
+    fun formatCompactYuan(amount: Long): String {
+        return when {
+            amount >= 100_000_000L -> String.format("¥%.2f亿", amount / 100_000_000.0)
+            amount >= 10_000L -> String.format("¥%.1f万", amount / 10_000.0)
+            else -> "¥$amount"
+        }
+    }
+
+    fun afterTaxYuan(gross: Long): Long =
+        if (gross > 10_000L) (gross * 80L) / 100L else gross
+
+    private fun singlePrize(
+        type: LotteryType,
+        r: Int,
+        b: Int,
+        draw: DrawRecord,
+        extra: Boolean
+    ): Pair<String, Long>? {
+        fun officialAmount(levelName: String, fallback: Long): Long {
             val raw = draw.prizeLevels.firstOrNull { it.name == levelName }?.amount.orEmpty()
-            return raw.replace(",", "").replace("元", "").trim().toDoubleOrNull()?.toInt() ?: fallback
+            val parsed = parseMoneyLong(raw)
+            return if (parsed > 0L) parsed else fallback
+        }
+        fun dltWithExtra(baseName: String): Long {
+            val base = officialAmount(baseName, 0L)
+            if (!extra) return base
+            val addName = "$baseName(追加)"
+            val add = officialAmount(addName, (base * 80L) / 100L)
+            return base + add
         }
         return when (type) {
             LotteryType.SSQ -> when {
-                r == 6 && b == 1 -> "一等奖" to 0
-                r == 6 -> "二等奖" to 0
-                r == 5 && b == 1 -> "三等奖" to officialFixed("三等奖", 3000)
-                r == 5 || (r == 4 && b == 1) -> "四等奖" to officialFixed("四等奖", 200)
-                r == 4 || (r == 3 && b == 1) -> "五等奖" to officialFixed("五等奖", 10)
-                b == 1 -> "六等奖" to officialFixed("六等奖", 5)
+                r == 6 && b == 1 -> "一等奖" to officialAmount("一等奖", 0L)
+                r == 6 -> "二等奖" to officialAmount("二等奖", 0L)
+                r == 5 && b == 1 -> "三等奖" to officialAmount("三等奖", 3000L)
+                r == 5 || (r == 4 && b == 1) -> "四等奖" to officialAmount("四等奖", 200L)
+                r == 4 || (r == 3 && b == 1) -> "五等奖" to officialAmount("五等奖", 10L)
+                b == 1 -> "六等奖" to officialAmount("六等奖", 5L)
                 else -> null
             }
-            // 2026年超级大乐透现行7奖级新规（并自动适配奖池>=8亿时的浮动加奖标准）
+            // 2026年超级大乐透现行7奖级新规（一二等奖支持合并追加奖金）
             LotteryType.DLT -> when {
-                r == 5 && b == 2 -> "一等奖" to 0
-                r == 5 && b == 1 -> "二等奖" to 0
-                r == 5 || (r == 4 && b == 2) -> "三等奖" to officialFixed("三等奖", 5000)
-                r == 4 && b == 1 -> "四等奖" to officialFixed("四等奖", 300)
-                (r == 3 && b == 2) || r == 4 -> "五等奖" to officialFixed("五等奖", 150)
-                (r == 3 && b == 1) || (r == 2 && b == 2) -> "六等奖" to officialFixed("六等奖", 15)
-                r == 3 || (r == 2 && b == 1) || (r == 1 && b == 2) || b == 2 -> "七等奖" to officialFixed("七等奖", 5)
+                r == 5 && b == 2 -> "一等奖" to dltWithExtra("一等奖")
+                r == 5 && b == 1 -> "二等奖" to dltWithExtra("二等奖")
+                r == 5 || (r == 4 && b == 2) -> "三等奖" to officialAmount("三等奖", 5000L)
+                r == 4 && b == 1 -> "四等奖" to officialAmount("四等奖", 300L)
+                (r == 3 && b == 2) || r == 4 -> "五等奖" to officialAmount("五等奖", 150L)
+                (r == 3 && b == 1) || (r == 2 && b == 2) -> "六等奖" to officialAmount("六等奖", 15L)
+                r == 3 || (r == 2 && b == 1) || (r == 1 && b == 2) || b == 2 -> "七等奖" to officialAmount("七等奖", 5L)
                 else -> null
             }
         }
@@ -216,14 +249,14 @@ object LotteryRules {
         val hitBack = allBack.filter { it in drawBack }.toSet()
 
         val breakdown = linkedMapOf<String, Int>()
-        var fixedTotal = 0
+        var grossTotal = 0L
         val mult = ticket.multiplier.coerceAtLeast(1)
 
         if (ticket.playMode == PlayMode.SINGLE) {
-            val prize = singlePrize(ticket.type, hitFront.size, hitBack.size, draw)
+            val prize = singlePrize(ticket.type, hitFront.size, hitBack.size, draw, ticket.extra)
             if (prize != null) {
                 breakdown[prize.first] = mult
-                fixedTotal = prize.second * mult
+                grossTotal = prize.second * mult
             }
         } else {
             val fDanHits = ticket.frontDan.count { it in drawFront }
@@ -243,9 +276,9 @@ object LotteryRules {
                     val bWays = comb(bTuoHits, bh) * comb(bTuoMiss, needBTuo - bh)
                     if (bWays == 0) continue
                     val ways = fWays * bWays
-                    val prize = singlePrize(ticket.type, fDanHits + fh, bDanHits + bh, draw) ?: continue
+                    val prize = singlePrize(ticket.type, fDanHits + fh, bDanHits + bh, draw, ticket.extra) ?: continue
                     breakdown[prize.first] = (breakdown[prize.first] ?: 0) + ways * mult
-                    fixedTotal += prize.second * ways * mult
+                    grossTotal += prize.second * ways * mult
                 }
             }
         }
@@ -262,13 +295,16 @@ object LotteryRules {
             else -> topPrize
         }
 
+        val netTotal = afterTaxYuan(grossTotal)
         return TicketCheckResult(
             isPending = false,
             hitFront = hitFront,
             hitBack = hitBack,
             prizeName = displayPrize,
             prizeBreakdown = sortedBreakdown,
-            fixedAmount = fixedTotal
+            fixedAmount = netTotal.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+            totalAmount = grossTotal,
+            afterTaxAmount = netTotal
         )
     }
 
